@@ -1,3 +1,40 @@
+# lambdabuild
+
+Terraform provider (`cloudandthings/lambdabuild`) that builds deterministic AWS Lambda zip Artifacts from uv projects. uv is embedded in the provider binary, so the runner needs only Terraform. Product promise: **same inputs, same bytes, on every host** (macOS, Linux, Windows). Treat any change that could make output depend on the host, the clock, or the environment as a bug.
+
+Status and what's next: `ROADMAP.md`. Nothing released yet (`VERSION` is `0.0.0`).
+
+## Layout
+
+- `internal/provider/`: Terraform plugin-framework provider and the `lambdabuild_python_package` resource (test seam A).
+- `internal/core/`: the core build interface (test seam B): `Fingerprint` (plan time, writes nothing) and `Build` (apply time). The fingerprinter, packager, toolchain, artifact store, etc. live under `internal/core/internal/` and are tested only through `core`.
+- `internal/core/internal/uvbin/`: embedded uv. Pinned in its `VERSION` (must match `uv` in `.mise/config.toml`); binaries fetched by `mise run uv:fetch` into gitignored `assets/`.
+- `cmd/lambdabuild-harness/`: CLI that drives `core` directly, for debugging builds without Terraform.
+- `testdata/fixtures/`: hermetic uv projects with fake Packages (regenerate with `mise run fixtures:gen`). `testdata/smoke/`: container smoke test config.
+- `dev/mock-aws/`: plan/apply the local provider against moto (`mise run mock-aws:*`).
+- `docs/` is **generated** by tfplugindocs from schema descriptions, `templates/` and `examples/`. Edit those, then `mise run docs:generate`; `docs:validate` fails on drift.
+
+## Domain and decisions
+
+- Use `GLOSSARY.md` terms in code, tests, commits and docs (Artifact, Input fingerprint, Packaging-format version, uv project, Workspace member, Package). Avoid the synonyms it lists.
+- Read the ADRs in `docs/adr/` touching your area before changing it. Key ones: build at apply, not plan (0001); uv runs as an embedded subprocess (0002); uv version stays out of the fingerprint (0003). If a change contradicts an ADR, say so explicitly.
+
+## Reproducibility rules
+
+- **Golden hashes** in `internal/core/golden_test.go` / `golden_sbom_test.go` pin every fixture's fingerprint, zip and SBOM SHA-256. Run `mise run test:golden` after touching fingerprinting, packaging, SBOM, uv or Go versions. A hash change is a decision, never a test to "fix" by pasting new values.
+- Any change to Artifact bytes from unchanged inputs bumps `packager.FormatVersion` and gets a **One-time redeploy** changelog entry (policy at the top of `CHANGELOG.md`).
+- Isolation is deliberate: user `UV_*` variables are ignored, credentials never go in provider arguments (they land in state), uv errors are redacted. Keep new inputs inside that model.
+- Windows is a first-class target (CI matrix runs ubuntu, macos, windows). Watch path quoting, file locks/renames, `MAX_PATH`, and junctions; platform code goes in `_windows.go` / `_unix.go` / `_other.go` files.
+- Concurrent builds may share one `cache_dir` and `output_dir`; shared state needs a lock or atomic rename. Use a worktree-unique `LAMBDABUILD_TEST_CACHE_DIR` when running tests in parallel worktrees.
+
+## Way of work
+
+- Branch off `main` (`feat/…`, `fix/…`, `docs/…`); PR back to `main`. Never tag or publish by hand.
+- Commits: Conventional Commits with a scope (`fix(toolchain): …`, `test(provider): …`, `docs(changelog): …`). One logical change per commit. The body explains the observed failure (quote the exact error) and why the fix works.
+- Write tests first for bugs: reproduce red through `core` or the resource, then fix. Prefer hermetic fixtures over network; network-only tests carry the `network` build tag.
+- Every user-visible feat/fix gets a hand-written `CHANGELOG.md` entry under Unreleased (Breaking changes / One-time redeploy / Changed / Fixed), and the docs (schema descriptions, `templates/`, `examples/`) updated in the same branch.
+- Schema descriptions are user docs: write them for the Registry page.
+
 ## Agent skills
 
 ### Issue tracker
@@ -14,7 +51,7 @@ Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents
 
 ## mise
 
-mise is the single entry point for tooling, tasks and env vars, so a task runs the same locally and in CI.
+mise is the single entry point for tooling, tasks and env vars, so a task runs the same locally and in CI. `mise tasks` lists them all.
 
 - **Tasks are bash scripts** in `.mise/tasks/`, not inline TOML. Start each with `#!/usr/bin/env bash`, a `#MISE description="..."` line and `set -euo pipefail`; `chmod +x`.
 - **Organise with folders**: `.mise/tasks/test/unit` is `mise run test:unit`.
