@@ -323,7 +323,25 @@ type Python struct {
 
 // Python installs (once) and locates the managed Python for version, e.g.
 // "3.12". System Pythons are never used.
+//
+// Builds sharing a cache_dir serialise on a lock file in the install dir.
+// uv python install (re)creates the minor-version link
+// (cpython-3.12-<platform>, a junction on Windows) without a lock of its
+// own, so a concurrent uv python find through it sees a half-built
+// interpreter, and two installs fail on the link with a sharing violation.
 func (tc *Toolchain) Python(ctx context.Context, version string) (Python, error) {
+	dir := filepath.Join(tc.cacheDir, "python")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return Python{}, err
+	}
+	lock, err := os.OpenFile(filepath.Join(dir, ".install.lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return Python{}, err
+	}
+	defer func() { _ = lock.Close() }() // releases the lock
+	if err := lockFile(lock); err != nil {
+		return Python{}, fmt.Errorf("lock %s: %w", lock.Name(), err)
+	}
 	if _, err := tc.Run(ctx, "", "python", "install", version); err != nil {
 		return Python{}, err
 	}
