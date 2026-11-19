@@ -329,6 +329,13 @@ type Python struct {
 // (cpython-3.12-<platform>, a junction on Windows) without a lock of its
 // own, so a concurrent uv python find through it sees a half-built
 // interpreter, and two installs fail on the link with a sharing violation.
+//
+// The lock only covers install and find; builds then run the interpreter
+// for minutes. So the returned Path never goes through the minor-version
+// link: it is found by exact patch version, which resolves to that
+// installation's own folder, and checked to be in it. --no-bin and
+// --no-registry keep the install out of the user's bin dir and the
+// Windows registry, which are shared beyond cache_dir.
 func (tc *Toolchain) Python(ctx context.Context, version string) (Python, error) {
 	dir := filepath.Join(tc.cacheDir, "python")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -342,16 +349,34 @@ func (tc *Toolchain) Python(ctx context.Context, version string) (Python, error)
 	if err := lockFile(lock); err != nil {
 		return Python{}, fmt.Errorf("lock %s: %w", lock.Name(), err)
 	}
-	if _, err := tc.Run(ctx, "", "python", "install", version); err != nil {
+	if _, err := tc.Run(ctx, "", "python", "install", "--no-bin", "--no-registry", version); err != nil {
 		return Python{}, err
 	}
-	path, err := tc.Run(ctx, "", "python", "find", version)
+	out, err := tc.Run(ctx, "", "python", "find", "--show-version", version)
 	if err != nil {
 		return Python{}, err
 	}
-	full, err := tc.Run(ctx, "", "python", "find", "--show-version", version)
+	full := strings.TrimSpace(out)
+	out, err = tc.Run(ctx, "", "python", "find", full)
 	if err != nil {
 		return Python{}, err
 	}
-	return Python{Path: strings.TrimSpace(path), FullVersion: strings.TrimSpace(full)}, nil
+	path := strings.TrimSpace(out)
+	if !inPatchInstall(path, full) {
+		return Python{}, fmt.Errorf("uv python find %s returned %s, not an interpreter in a cpython-%s-* folder", full, path, full)
+	}
+	return Python{Path: path, FullVersion: full}, nil
+}
+
+// inPatchInstall reports whether path is inside a cpython-<full>-<platform>
+// install folder, not reached through a minor-version link such as
+// cpython-3.12-<platform>. It matches path components rather than comparing
+// with the install dir, which Windows may spell with short (8.3) names.
+func inPatchInstall(path, full string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if strings.HasPrefix(part, "cpython-"+full+"-") {
+			return true
+		}
+	}
+	return false
 }
