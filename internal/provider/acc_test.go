@@ -25,7 +25,8 @@ import (
 // only run with TF_ACC=1 (`mise run test:acc`).
 
 // protoV6Factories serves the provider in-process; terraform-plugin-testing
-// uses the Terraform binary from TF_ACC_TERRAFORM_PATH (set by mise).
+// uses the Terraform binary from TF_ACC_TERRAFORM_PATH (set by
+// `mise run test:acc`).
 var protoV6Factories = map[string]func() (tfprotov6.ProviderServer, error){
 	"lambdabuild": providerserver.NewProtocol6WithError(provider.New("test")()),
 }

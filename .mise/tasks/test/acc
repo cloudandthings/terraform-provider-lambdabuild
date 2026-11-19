@@ -3,4 +3,6 @@
 #MISE depends=["uv:fetch"]
 set -euo pipefail
 export TF_ACC=1
+# mise which resolves the per-OS install dir and terraform.exe on Windows.
+export TF_ACC_TERRAFORM_PATH="$(mise which terraform)"
 go test ./internal/provider/... -count=1 "$@"
