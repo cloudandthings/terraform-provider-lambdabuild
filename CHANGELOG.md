@@ -11,6 +11,8 @@ All notable changes are recorded here, newest first. Versions follow semantic ve
 
 ## Unreleased
 
+## 0.1.0 - 2026-11-19
+
 ### One-time redeploy
 
 Packaging-format version 2. Every Artifact gets a new `output_path` on the next plan and Lambda functions and layers redeploy once; no action is needed beyond applying. For most projects the zip bytes are unchanged; they change for projects affected by these rules:
