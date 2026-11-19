@@ -1,0 +1,101 @@
+version = 1
+revision = 5
+requires-python = ">=3.12"
+
+[manifest]
+members = [
+    "wsapp",
+    "wsdev",
+    "wsextra",
+    "wslib",
+    "wsother",
+]
+
+[[package]]
+name = "pathdep"
+version = "1.0.0"
+source = { directory = "../vendor/pathdep" }
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "simple" }
+wheels = [
+    { path = "six/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274" },
+]
+
+[[package]]
+name = "tabulate"
+version = "0.9.0"
+source = { registry = "simple" }
+wheels = [
+    { path = "tabulate/tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f" },
+]
+
+[[package]]
+name = "wsapp"
+version = "0.1.0"
+source = { editable = "packages/wsapp" }
+dependencies = [
+    { name = "pathdep" },
+    { name = "wslib" },
+]
+
+[package.optional-dependencies]
+fancy = [
+    { name = "wsextra" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "wsdev" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pathdep", directory = "../vendor/pathdep" },
+    { name = "wsextra", marker = "extra == 'fancy'", editable = "packages/wsextra" },
+    { name = "wslib", editable = "packages/wslib" },
+]
+provides-extras = ["fancy"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "wsdev", editable = "packages/wsdev" }]
+
+[[package]]
+name = "wsdev"
+version = "0.4.0"
+source = { editable = "packages/wsdev" }
+
+[[package]]
+name = "wsextra"
+version = "0.3.0"
+source = { editable = "packages/wsextra" }
+dependencies = [
+    { name = "tabulate" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tabulate", specifier = "==0.9.0" }]
+
+[[package]]
+name = "wslib"
+version = "0.2.0"
+source = { editable = "packages/wslib" }
+dependencies = [
+    { name = "six" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "six", specifier = "==1.17.0" }]
+
+[[package]]
+name = "wsother"
+version = "0.5.0"
+source = { editable = "packages/wsother" }
+dependencies = [
+    { name = "wslib" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "wslib", editable = "packages/wslib" }]

@@ -1,0 +1,13 @@
+[project]
+name = "wsother"
+version = "0.5.0"
+description = "Member unrelated to wsapp"
+requires-python = ">=3.12"
+dependencies = ["wslib"]
+
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[tool.uv.sources]
+wslib = { workspace = true }

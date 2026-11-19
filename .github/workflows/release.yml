@@ -1,0 +1,48 @@
+name: Release
+
+# Releasing = run /release-patch|minor|major, which opens a PR bumping `VERSION`.
+# Merging it to main tags vX.Y.Z and publishes the signed GitHub Release (the
+# Terraform Registry picks it up from there) unless it is already published.
+# To retry a failed run (or release after a fix that didn't touch VERSION),
+# use "Run workflow" on main.
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/nightly.yml
+
+  release:
+    needs: smoke
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - name: Import GPG key
+        id: gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: mise run release:gpg-import
+      - run: mise run release:publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GPG_FINGERPRINT: ${{ steps.gpg.outputs.fingerprint }}
+          GPG_PASSPHRASE_FILE: ${{ steps.gpg.outputs.passphrase_file }}

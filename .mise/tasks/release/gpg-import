@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#MISE description="CI-only: import the release signing key and write its fingerprint and passphrase file to GITHUB_OUTPUT"
+set -euo pipefail
+: "${GPG_PRIVATE_KEY:?}" "${GPG_PASSPHRASE:?}" "${GITHUB_OUTPUT:?}" "${RUNNER_TEMP:?}"
+
+printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+fingerprint="$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')"
+[ -n "$fingerprint" ] || { echo "no secret key imported" >&2; exit 1; }
+
+# goreleaser's gpg call reads the passphrase from this file (pinentry loopback).
+umask 077
+passfile="$RUNNER_TEMP/gpg-passphrase"
+printf '%s' "$GPG_PASSPHRASE" >"$passfile"
+
+{
+  echo "fingerprint=$fingerprint"
+  echo "passphrase_file=$passfile"
+} >>"$GITHUB_OUTPUT"

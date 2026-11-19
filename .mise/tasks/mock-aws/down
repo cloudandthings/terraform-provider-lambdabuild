@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Stop the mock AWS and delete dev/mock-aws state and build outputs"
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+docker rm -f lambdabuild-mock-aws >/dev/null 2>&1 || true
+rm -rf "$root/dev/mock-aws/build" "$root"/dev/mock-aws/terraform.tfstate*
+echo "mock AWS stopped; state removed"

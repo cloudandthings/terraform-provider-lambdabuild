@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run Terraform acceptance tests (seam A) against the mise-pinned Terraform"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+export TF_ACC=1
+go test ./internal/provider/... -count=1 "$@"

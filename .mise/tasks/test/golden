@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run the golden-hash tests (Artifact bytes and Input fingerprints) for every fixture"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+go test ./internal/core/ -run 'TestGolden(SBOM)?Hashes' -count=1 -v "$@"

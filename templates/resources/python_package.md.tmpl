@@ -1,0 +1,55 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+The zip is built during `apply`, not `plan` ([ADR 0001](https://github.com/cloudandthings/terraform-provider-lambdabuild/blob/main/docs/adr/0001-build-at-apply-not-plan.md)).
+Plan computes only the input fingerprint, so `output_path` changes whenever the inputs change.
+
+## Behaviour notes
+
+- **What is fingerprinted is what ships.** With `install_project`, the project and every local dependency (sibling workspace members, path dependencies) are built into wheels from a per-build copy of their fingerprinted files: the whole tree minus `source_exclude` and `.gitignore`d paths. `.gitignore` files above `project_dir` up to the git repository root apply, as in git. A file excluded from the fingerprint never reaches the wheel, so package data must not live in a folder matched by `source_exclude` (by default `build`, `dist`, `tests`, ... at any depth). Files outside the tree (for example a `readme = "../README.md"`) are not available to the build backend, and setuptools-scm style versions from git are not available either; use a static version.
+- **Dependency groups are opt-in.** Only the groups listed in `groups` are installed; `[tool.uv] default-groups` is ignored and `dev` never ships.
+- **Dependency layer without project code.** Set `artifact_type = "layer"`, `install_project = false` and `source_include = []`.
+- **Sources changed after `terraform plan -out`.** Applying the saved plan fails with Terraform's own error `Provider produced inconsistent final plan ... .input_fingerprint`, followed by a request to report a provider bug. The apply failed safely and built nothing; run `terraform plan` again. A change in the moment between Terraform's apply-time re-plan and the build fails with "Build inputs changed since plan" instead.
+- **Saved no-op plans on another runner.** A saved plan that plans no change builds nothing. Applied on a runner without the zip, the zip stays absent there; resources that read the file itself in the same apply (for example `aws_s3_object` with `source`) fail. Plan on the runner that applies, or keep `on_missing_artifact = "rebuild"` so a missing zip plans its rebuild.
+- **`sbom` is part of the Artifact.** Toggling `sbom` changes the Input fingerprint and `output_path`, so dependent Lambda resources update once even though the zip bytes are the same.
+- **Index credentials** come only from the environment (`UV_INDEX_<NAME>_USERNAME` / `UV_INDEX_<NAME>_PASSWORD`); see the provider documentation.
+
+## Example Usage
+
+### Function
+
+{{ tffile "examples/resources/lambdabuild_python_package/resource.tf" }}
+
+### Layer
+
+{{ tffile "examples/resources/lambdabuild_python_package/layer.tf" }}
+
+### Code-only function plus dependency layer
+
+{{ tffile "examples/resources/lambdabuild_python_package/code-only-with-layer.tf" }}
+
+### Large Artifacts: upload through S3
+
+{{ tffile "examples/resources/lambdabuild_python_package/s3-upload.tf" }}
+
+### Per-workspace `output_dir`
+
+{{ tffile "examples/resources/lambdabuild_python_package/per-workspace-output-dir.tf" }}
+
+### Drift-detection jobs
+
+{{ tffile "examples/resources/lambdabuild_python_package/drift-detection.tf" }}
+
+### SBOM upload
+
+{{ tffile "examples/resources/lambdabuild_python_package/sbom-upload.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}

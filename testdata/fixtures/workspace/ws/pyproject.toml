@@ -1,0 +1,14 @@
+# Workspace root (no [project]): build one member with workspace_member.
+#   wsapp   -> wslib (sibling, depends on six), pathdep (path dependency
+#              outside the workspace root); extra "fancy" -> wsextra;
+#              dev group -> wsdev (never shipped)
+#   wsother -> wslib (unrelated to wsapp)
+[tool.uv.workspace]
+members = ["packages/*"]
+
+# Hermetic fixture: Packages and the build backend (flit_core) come from the
+# committed PEP 503 (simple) index directory, never from PyPI.
+[[tool.uv.index]]
+name = "fixture-wheels"
+url = "./simple"
+default = true

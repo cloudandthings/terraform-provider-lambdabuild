@@ -1,0 +1,17 @@
+[project]
+name = "demoapp"
+version = "0.1.0"
+description = "Packaged project with package data"
+requires-python = ">=3.12"
+dependencies = ["six==1.17.0"]
+
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+# Hermetic fixture: Packages and the build backend (flit_core) come from the
+# committed PEP 503 (simple) index directory, never from PyPI.
+[[tool.uv.index]]
+name = "fixture-wheels"
+url = "./simple"
+default = true

@@ -1,0 +1,22 @@
+version = 1
+revision = 5
+requires-python = ">=3.12"
+
+[[package]]
+name = "demoapp"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "six" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "six", specifier = "==1.17.0" }]
+
+[[package]]
+name = "six"
+version = "1.17.0"
+source = { registry = "simple" }
+wheels = [
+    { path = "six/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274" },
+]

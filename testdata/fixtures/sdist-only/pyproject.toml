@@ -1,0 +1,11 @@
+[project]
+name = "sdist-only"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fakesdist==1.0"]
+
+# Hermetic fixture: fakesdist exists only as a source distribution.
+[[tool.uv.index]]
+name = "fixture-wheels"
+url = "./simple"
+default = true

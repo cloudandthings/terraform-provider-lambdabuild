@@ -1,0 +1,33 @@
+---
+page_title: "Provider: {{.ProviderName}}"
+description: |-
+  Builds deterministic AWS Lambda zip Artifacts from uv-managed Python projects.
+---
+
+# {{.ProviderName}} Provider
+
+Builds deterministic AWS Lambda zip Artifacts (functions and layers) from uv-managed Python projects.
+uv is embedded in the provider binary, so no Python tooling is needed on the runner.
+
+## Example Usage
+
+{{ tffile "examples/provider/provider.tf" }}
+
+## Private indexes and credentials
+
+Provider arguments are stored in state, in plan JSON and in saved plan files, so `index_url`, `extra_index_urls` and `python_install_mirror` must not contain credentials (`https://user:password@...` is rejected). Give the index a name and put the credentials in the environment of the process that runs Terraform:
+
+```hcl
+provider "lambdabuild" {
+  index_url = "corp=https://pypi.corp.example/simple"
+}
+```
+
+```sh
+export UV_INDEX_CORP_USERNAME=svc-builder
+export UV_INDEX_CORP_PASSWORD=...
+```
+
+An index declared in the project's `pyproject.toml` (`[[tool.uv.index]] name = "corp"`) uses the same variables. Proxies (`HTTPS_PROXY`), certificates (`SSL_CERT_FILE`, `native_tls`) also come from the environment; other `UV_*` variables are ignored so every host builds alike, and uv's errors are redacted before they reach Terraform.
+
+{{ .SchemaMarkdown | trimspace }}

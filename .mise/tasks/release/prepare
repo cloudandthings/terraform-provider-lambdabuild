@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#MISE description="Branch release/vX.Y.Z from main, bump VERSION (patch|minor|major), move CHANGELOG Unreleased under the new version, commit and push"
+#USAGE arg "<bump>" help="patch, minor or major" {
+#USAGE   choices "patch" "minor" "major"
+#USAGE }
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
+
+bump=${usage_bump:?}
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Working tree not clean; commit or stash first" >&2
+  exit 1
+fi
+
+git fetch origin --tags
+git switch main
+git merge --ff-only origin/main
+
+old_version=$(tr -d '[:space:]' <VERSION)
+IFS=. read -r major minor patch <<<"$old_version"
+case "$bump" in
+  major) version="$((major + 1)).0.0" ;;
+  minor) version="$major.$((minor + 1)).0" ;;
+  patch) version="$major.$minor.$((patch + 1))" ;;
+esac
+branch="release/v$version"
+if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+  echo "Tag v$version already exists" >&2
+  exit 1
+fi
+if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+  echo "Branch $branch already exists on origin" >&2
+  exit 1
+fi
+grep -q '^## Unreleased$' CHANGELOG.md || { echo "CHANGELOG.md has no '## Unreleased' heading" >&2; exit 1; }
+
+git switch -c "$branch"
+printf '%s\n' "$version" >VERSION
+
+# Entries are written by hand under Unreleased (see the changelog policy);
+# releasing renames that section and leaves a fresh empty one on top.
+NEW="$version" DATE="$(date -u +%Y-%m-%d)" perl -0pi -e \
+  's/^## Unreleased\n/## Unreleased\n\n## $ENV{NEW} - $ENV{DATE}\n/m' CHANGELOG.md
+
+unexpected=$(git status --porcelain | grep -vE '^ M (VERSION|CHANGELOG\.md)$' || true)
+if [ -n "$unexpected" ]; then
+  echo "Unexpected changes after bump:" >&2
+  echo "$unexpected" >&2
+  exit 1
+fi
+
+git add VERSION CHANGELOG.md
+git commit -m "chore: release $version"
+git push -u origin "$branch"
+echo "Prepared $branch"

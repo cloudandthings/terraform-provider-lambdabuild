@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Everything CI runs, with CI=true like the workflow"
+set -euo pipefail
+export CI=true
+mise run lint:go
+mise run test:unit
+mise run test:acc
+mise run docs:validate

@@ -1,0 +1,8 @@
+[project]
+name = "layer-user"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+# Code-only function: numpy is deliberately NOT a dependency here. It comes
+# from the layer built from the numpy-deps fixture (smoke tests only).

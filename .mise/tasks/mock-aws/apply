@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="terraform apply in dev/mock-aws against the mock AWS (extra args go to terraform)"
+set -euo pipefail
+exec mise run mock-aws:tf -- apply "$@"

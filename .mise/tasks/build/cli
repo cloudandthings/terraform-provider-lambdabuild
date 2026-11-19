@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Build the lambdabuild-harness CLI (core build interface driver) into bin/"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+mkdir -p bin
+go build -trimpath -o bin/lambdabuild-harness ./cmd/lambdabuild-harness

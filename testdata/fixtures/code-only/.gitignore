@@ -1,0 +1,5 @@
+# local clutter
+scratch_*.py
+/local_settings.py
+generated/
+!generated/keep.py

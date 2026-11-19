@@ -1,0 +1,13 @@
+# A project whose build backend lives in the tree (PEP 517 backend-path) and,
+# like setuptools, writes build leftovers (build/, *.egg-info) into the source
+# tree it builds from. Needs no index: the backend has no requirements.
+[project]
+name = "intree"
+version = "0.1.0"
+description = "Project built by an in-tree backend that writes into its source tree"
+requires-python = ">=3.12"
+
+[build-system]
+requires = []
+build-backend = "backend"
+backend-path = ["_backend"]

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Build release archives for every platform locally (GoReleaser snapshot, unsigned, nothing published) into dist/"
+set -euo pipefail
+goreleaser release --snapshot --clean --skip=sign,publish "$@"

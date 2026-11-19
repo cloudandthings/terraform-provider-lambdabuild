@@ -1,0 +1,12 @@
+[tools]
+go = "1.27.4"
+terraform = "1.17.2"
+opentofu = "1.13.9"
+goreleaser = "2.20.2"
+golangci-lint = "2.15.0"
+"go:github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs" = "0.25.0"
+# Host uv for spikes and fixture maintenance only; the provider embeds its own pinned uv.
+uv = "0.13.6"
+
+[env]
+TF_ACC_TERRAFORM_PATH = "{{ env.MISE_DATA_DIR | default(value=env.HOME ~ '/.local/share/mise') }}/installs/terraform/1.17.2/terraform"

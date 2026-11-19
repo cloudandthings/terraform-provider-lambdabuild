@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Run the acceptance tests against OpenTofu (mise-pinned) instead of Terraform"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+tofu="$(mise which tofu)"
+export TF_ACC=1
+export TF_ACC_TERRAFORM_PATH="$tofu"
+export TF_ACC_PROVIDER_NAMESPACE="hashicorp"
+export TF_ACC_PROVIDER_HOST="registry.opentofu.org"
+"$tofu" version
+go test ./internal/provider/... -count=1 "$@"

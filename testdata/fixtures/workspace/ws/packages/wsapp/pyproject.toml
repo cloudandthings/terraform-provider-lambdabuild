@@ -1,0 +1,22 @@
+[project]
+name = "wsapp"
+version = "0.1.0"
+description = "Workspace member built into the Artifact"
+requires-python = ">=3.12"
+dependencies = ["wslib", "pathdep"]
+
+[project.optional-dependencies]
+fancy = ["wsextra"]
+
+[dependency-groups]
+dev = ["wsdev"]
+
+[build-system]
+requires = ["flit_core==3.12.0"]
+build-backend = "flit_core.buildapi"
+
+[tool.uv.sources]
+wslib = { workspace = true }
+wsextra = { workspace = true }
+wsdev = { workspace = true }
+pathdep = { path = "../../../vendor/pathdep" }

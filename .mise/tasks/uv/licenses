@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Refresh licenses/uv/LICENSE-* from the uv tag pinned in uvbin/VERSION"
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+v="$(tr -d '[:space:]' <"$root/internal/core/internal/uvbin/VERSION")"
+for f in LICENSE-MIT LICENSE-APACHE; do
+  curl -fsSL "https://raw.githubusercontent.com/astral-sh/uv/$v/$f" -o "$root/licenses/uv/$f"
+done

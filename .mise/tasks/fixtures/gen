@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Regenerate the fake Packages (wheels, sdists, PEP 503 index pages) of the hermetic test fixtures"
+# Deterministic: with an unchanged generator, `git status` stays clean.
+# Uses the mise-pinned host uv (fixture maintenance only) to run Python.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+uv run --no-project --python 3.12 python -I "$root/testdata/gen/fake_wheels.py" "$root/testdata/fixtures"

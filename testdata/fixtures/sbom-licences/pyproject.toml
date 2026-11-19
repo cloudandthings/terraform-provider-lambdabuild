@@ -1,0 +1,13 @@
+[project]
+name = "sbom-licences"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["zeta-pkg==1.0", "unknownlic==1.0", "nolic==1.0"]
+
+# Fake Packages (mise run fixtures:gen) covering the SBOM licence rules:
+# License-Expression over License, "UNKNOWN" and missing licences omitted,
+# and purl name normalisation (Zeta_Pkg -> zeta-pkg).
+[[tool.uv.index]]
+name = "fixture-wheels"
+url = "./simple"
+default = true

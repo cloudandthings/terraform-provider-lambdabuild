@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#MISE description="Run terraform in dev/mock-aws with the locally built provider (e.g. mise run mock-aws:tf -- output)"
+#MISE depends=["uv:fetch"]
+#
+# Builds the provider from this checkout, points Terraform at it with
+# dev_overrides and runs `terraform init` when needed. Extra args go to
+# terraform. Env: MOCK_AWS_PORT (default 5050), TF_BIN (default terraform;
+# set to tofu to try OpenTofu).
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+dir="$root/dev/mock-aws"
+work="$root/dist/mock-aws"
+port="${MOCK_AWS_PORT:-5050}"
+tf="${TF_BIN:-terraform}"
+
+if ! curl -fsS "http://localhost:${port}/moto-api/" >/dev/null 2>&1; then
+  echo "mock AWS not reachable on localhost:${port}; run: mise run mock-aws:up" >&2
+  exit 1
+fi
+
+mkdir -p "$work/provider"
+go build -trimpath -o "$work/provider/terraform-provider-lambdabuild" "$root"
+cat >"$work/terraform.rc" <<RC
+provider_installation {
+  dev_overrides {
+    "registry.terraform.io/cloudandthings/lambdabuild" = "$work/provider"
+    "registry.opentofu.org/cloudandthings/lambdabuild" = "$work/provider"
+  }
+  direct {}
+}
+RC
+
+export TF_CLI_CONFIG_FILE="$work/terraform.rc"
+export TF_DATA_DIR="$work/.terraform-$tf"
+export TF_VAR_aws_endpoint="http://localhost:${port}"
+
+cd "$dir"
+if [ ! -d "$TF_DATA_DIR/providers" ]; then
+  "$tf" init -input=false
+fi
+exec "$tf" "$@"

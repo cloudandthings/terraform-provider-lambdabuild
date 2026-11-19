@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#MISE description="Container smoke tests: build Artifacts with Terraform in a clean container, import them in the Lambda Python base images (x86_64 + arm64)"
+#USAGE flag "--python <version>" default="3.12" help="Python minor version (Lambda image tag and python_version)"
+#USAGE flag "--keep" help="Keep dist/smoke (built zips, state) after the run"
+#
+# Needs Docker (amd64 containers run under emulation on arm64 hosts: slow but fine) and
+# network (PyPI for numpy, GitHub for python-build-standalone, public.ecr.aws).
+#
+# 1. Cross-compile the provider for linux/<host arch> (the Terraform container's arch).
+# 2. In hashicorp/terraform (only Terraform + the provider via dev_overrides; no
+#    Python, no uv on PATH) apply testdata/smoke/main.tf: every fixture x architecture.
+# 3. For each architecture, in public.ecr.aws/lambda/python:<ver> started with
+#    --platform linux/amd64 | linux/arm64, unpack function zips to /var/task and
+#    layers to /opt and run testdata/smoke/check.py.
+#
+# Env: LAMBDABUILD_TEST_CACHE_DIR (cache root, use a worktree-unique one for
+# concurrent runs), SMOKE_TF_PLATFORM (default: linux/<host arch>).
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+py="${usage_python:-3.12}"
+work="$root/dist/smoke"
+cache="${LAMBDABUILD_TEST_CACHE_DIR:-$root/dist/smoke-cache}/smoke-linux"
+tf_version="$(mise current terraform)"
+
+case "$(uname -m)" in
+  arm64 | aarch64) goarch=arm64 ;;
+  *) goarch=amd64 ;;
+esac
+tf_platform="${SMOKE_TF_PLATFORM:-linux/$goarch}"
+goarch="${tf_platform#linux/}"
+
+command -v docker >/dev/null || { echo "docker not found" >&2; exit 1; }
+
+echo "==> provider (linux/$goarch)"
+mise run uv:fetch --all
+rm -rf "$work"
+mkdir -p "$work/provider" "$work/tf" "$work/out" "$cache"
+CGO_ENABLED=0 GOOS=linux GOARCH="$goarch" \
+  go build -trimpath -o "$work/provider/terraform-provider-lambdabuild" "$root"
+
+cp "$root/testdata/smoke/main.tf" "$work/tf/main.tf"
+cat >"$work/tf/terraform.rc" <<'EOF'
+provider_installation {
+  dev_overrides {
+    "registry.terraform.io/cloudandthings/lambdabuild" = "/provider"
+  }
+  direct {}
+}
+EOF
+
+echo "==> terraform apply in hashicorp/terraform:$tf_version ($tf_platform)"
+tf=(docker run --rm --platform "$tf_platform"
+  --entrypoint terraform
+  -e HOME=/tmp -e TF_IN_AUTOMATION=1 -e TF_CLI_CONFIG_FILE=/work/terraform.rc
+  -e TF_DATA_DIR=/tmp/tfdata
+  -v "$work/tf:/work" -v "$work/provider:/provider:ro"
+  -v "$root/testdata:/src:ro" -v "$work/out:/out" -v "$cache:/cache"
+  -w /work "hashicorp/terraform:$tf_version")
+"${tf[@]}" apply -auto-approve -input=false -var "python_version=$py"
+"${tf[@]}" output -json artifacts >"$work/artifacts.json"
+
+echo "==> import in public.ecr.aws/lambda/python:$py"
+rc=0
+for arch in x86_64 arm64; do
+  case "$arch" in x86_64) plat=linux/amd64 ;; arm64) plat=linux/arm64 ;; esac
+  echo "--- $arch ($plat)"
+  docker run --rm --platform "$plat" --entrypoint python3 \
+    -v "$work/out:/out:ro" -v "$work/artifacts.json:/artifacts.json:ro" \
+    -v "$root/testdata/smoke/check.py:/check.py:ro" \
+    "public.ecr.aws/lambda/python:$py" /check.py /artifacts.json "$arch" || rc=1
+done
+
+if [ "${usage_keep:-}" != "true" ] && [ "$rc" = 0 ]; then rm -rf "$work"; fi
+exit "$rc"

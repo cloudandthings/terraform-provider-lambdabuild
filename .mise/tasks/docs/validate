@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#MISE description="Validate docs with tfplugindocs and fail if generated docs differ from the committed ones"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
+tfplugindocs validate --provider-name lambdabuild --provider-dir .
+before="$(mktemp -d)"
+trap 'rm -rf "$before"' EXIT
+cp -R docs/index.md docs/resources "$before"/
+tfplugindocs generate --provider-name lambdabuild --rendered-provider-name lambdabuild --provider-dir . --examples-dir examples
+diff -r "$before/resources" docs/resources && diff "$before/index.md" docs/index.md || {
+  echo "docs are stale: run mise run docs:generate and commit" >&2
+  exit 1
+}

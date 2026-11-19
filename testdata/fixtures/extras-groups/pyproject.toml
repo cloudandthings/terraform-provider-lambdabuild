@@ -1,0 +1,21 @@
+[project]
+name = "extras-groups"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["six==1.17.0"]
+
+# Optional dependencies, a custom dependency group and a dev group, so tests
+# can tell which of them reach the Artifact.
+[project.optional-dependencies]
+tab = ["tabulate==0.9.0"]
+
+[dependency-groups]
+dev = ["iniconfig==2.0.0"]
+tools = ["packaging==24.2"]
+
+# Hermetic fixture: every Package comes from the committed PEP 503 (simple)
+# index directory, never from PyPI.
+[[tool.uv.index]]
+name = "fixture-wheels"
+url = "./simple"
+default = true

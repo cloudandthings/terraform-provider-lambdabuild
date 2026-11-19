@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#MISE description="Start the mock AWS (moto server) for dev/mock-aws (port MOCK_AWS_PORT, default 5050)"
+#
+# moto keeps everything in memory: restarting it wipes all resources, so
+# `mock-aws:down` also deletes the local Terraform state.
+set -euo pipefail
+
+name=lambdabuild-mock-aws
+port="${MOCK_AWS_PORT:-5050}"
+
+command -v docker >/dev/null || { echo "docker not found" >&2; exit 1; }
+if [ -n "$(docker ps -q --filter "name=^${name}$")" ]; then
+  echo "$name already running"
+  exit 0
+fi
+docker rm -f "$name" >/dev/null 2>&1 || true
+docker run -d --name "$name" -p "127.0.0.1:${port}:5000" motoserver/moto:5.2.4 >/dev/null
+
+for _ in $(seq 1 30); do
+  if curl -fsS "http://localhost:${port}/moto-api/" >/dev/null 2>&1; then
+    echo "mock AWS ready on http://localhost:${port} (dashboard: /moto-api/)"
+    exit 0
+  fi
+  sleep 1
+done
+echo "mock AWS did not become ready" >&2
+docker logs "$name" >&2
+exit 1

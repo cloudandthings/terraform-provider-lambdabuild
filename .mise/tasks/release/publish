@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#MISE description="CI-only: tag and publish the signed GitHub Release for the VERSION file, unless it is already published"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
+
+version=$(tr -d '[:space:]' <VERSION)
+tag="v$version"
+
+# Skip only when a published release exists. A tag with no release (or a draft
+# left by a failed upload) is retried.
+state=$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null || echo missing)
+if [ "$state" = "false" ]; then
+  echo "Release $tag already published, nothing to do"
+  exit 0
+fi
+if [ "$state" = "true" ]; then
+  echo "Removing leftover draft release $tag"
+  gh release delete "$tag" --yes
+fi
+
+# The release notes are this version's CHANGELOG section.
+notes="$(mktemp)"
+trap 'rm -f "$notes"' EXIT
+awk -v h="## $version - " 'index($0, h) == 1 {on=1; next} /^## / {on=0} on' CHANGELOG.md >"$notes"
+[ -s "$notes" ] || { echo "CHANGELOG.md has no '## $version - <date>' section" >&2; exit 1; }
+
+# goreleaser needs the tag; reuse one that already points at this commit.
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  [ "$(git rev-parse "$tag^{commit}")" = "$(git rev-parse HEAD)" ] || {
+    echo "Tag $tag exists but not at HEAD" >&2
+    exit 1
+  }
+else
+  git tag "$tag"
+  git push origin "$tag"
+fi
+
+goreleaser release --clean --release-notes "$notes"
+echo "Released $tag"

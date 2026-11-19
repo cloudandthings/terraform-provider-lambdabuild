@@ -1,0 +1,2 @@
+# Fixtures are hashed byte for byte by golden-hash tests; never convert line endings.
+testdata/** -text

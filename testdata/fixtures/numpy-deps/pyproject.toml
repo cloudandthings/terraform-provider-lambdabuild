@@ -1,0 +1,8 @@
+[project]
+name = "numpy-deps"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["numpy==2.3.5"]
+
+# The one fixture that uses real PyPI (network): a genuine compiled Package.
+# Run via `mise run test:network`.

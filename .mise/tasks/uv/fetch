@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#MISE description="Download the pinned uv release, verify Astral's checksums, and write the gzip-compressed binaries embedded by internal/core/internal/uvbin"
+#USAGE flag "--all" help="Fetch every host platform (release builds). Default: this host only."
+#USAGE flag "--update-checksums" help="Re-read Astral's published .sha256 files into checksums.txt (after bumping VERSION)."
+#
+# The pinned version lives in internal/core/internal/uvbin/VERSION and must
+# match `uv` in .mise/config.toml. Archive checksums are committed in
+# internal/core/internal/uvbin/checksums.txt (copied from Astral's published
+# <archive>.sha256 files with --update-checksums), so a later compromise of
+# the download does not silently change what we embed.
+#
+# Outputs (gitignored, regenerated on demand):
+#   internal/core/internal/uvbin/assets/uv-<goos>-<goarch>.gz      gzip -n of the uv binary
+#   internal/core/internal/uvbin/assets/uv-<goos>-<goarch>.sha256  hex SHA-256 of the decompressed binary
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+pkg="$root/internal/core/internal/uvbin"
+version="$(tr -d '[:space:]' <"$pkg/VERSION")"
+checksums="$pkg/checksums.txt"
+assets="$pkg/assets"
+base="https://github.com/astral-sh/uv/releases/download/$version"
+
+# goos-goarch -> Astral archive. Linux uses the static musl builds so the
+# provider runs on glibc and musl (Alpine) runners alike.
+platforms=(
+  "darwin-arm64 uv-aarch64-apple-darwin.tar.gz"
+  "darwin-amd64 uv-x86_64-apple-darwin.tar.gz"
+  "linux-amd64 uv-x86_64-unknown-linux-musl.tar.gz"
+  "linux-arm64 uv-aarch64-unknown-linux-musl.tar.gz"
+  "windows-amd64 uv-x86_64-pc-windows-msvc.zip"
+)
+
+sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+if [[ "${usage_update_checksums:-false}" == "true" ]]; then
+  tmp="$(mktemp)"
+  echo "# uv $version archive SHA-256s, from Astral's published <archive>.sha256 files" >"$tmp"
+  for p in "${platforms[@]}"; do
+    archive="${p#* }"
+    sum="$(curl -fsSL "$base/$archive.sha256" | cut -d' ' -f1)"
+    [[ "$sum" =~ ^[0-9a-f]{64}$ ]] || { echo "bad checksum for $archive: $sum" >&2; exit 1; }
+    echo "$sum  $archive" >>"$tmp"
+  done
+  mv "$tmp" "$checksums"
+  echo "wrote $checksums"
+fi
+
+head -n1 "$checksums" | grep -q "uv $version " || {
+  echo "$checksums is not for uv $version; run: mise run uv:fetch --update-checksums" >&2
+  exit 1
+}
+
+host="$(go env GOOS)-$(go env GOARCH)"
+mkdir -p "$assets"
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+for p in "${platforms[@]}"; do
+  plat="${p%% *}"
+  archive="${p#* }"
+  if [[ "${usage_all:-false}" != "true" && "$plat" != "$host" ]]; then
+    continue
+  fi
+  gz="$assets/uv-$plat.gz"
+  stamp="$assets/uv-$plat.archive-sha256"
+  want="$(grep "  $archive\$" "$checksums" | cut -d' ' -f1)"
+  [[ -n "$want" ]] || { echo "no checksum for $archive in $checksums" >&2; exit 1; }
+  if [[ -f "$gz" && -f "$stamp" && "$(cat "$stamp")" == "$want" ]]; then
+    echo "uv $version $plat: up to date"
+    continue
+  fi
+
+  echo "uv $version $plat: downloading $archive"
+  curl -fsSL -o "$work/$archive" "$base/$archive"
+  got="$(sha256 "$work/$archive")"
+  if [[ "$got" != "$want" ]]; then
+    echo "checksum mismatch for $archive: got $got, want $want" >&2
+    exit 1
+  fi
+
+  mkdir -p "$work/$plat"
+  exe="uv"
+  if [[ "$archive" == *.zip ]]; then
+    unzip -q -o "$work/$archive" -d "$work/$plat"
+    exe="uv.exe"
+  else
+    tar -xzf "$work/$archive" -C "$work/$plat"
+  fi
+  bin="$(find "$work/$plat" -type f -name "$exe" | head -n1)"
+  [[ -n "$bin" ]] || { echo "$exe not found in $archive" >&2; exit 1; }
+
+  sha256 "$bin" >"$assets/uv-$plat.sha256"
+  gzip -n -9 -c "$bin" >"$gz.tmp"
+  mv "$gz.tmp" "$gz"
+  echo "$want" >"$stamp"
+  echo "uv $version $plat: wrote $gz"
+done

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run the network tests (numpy fixture downloads real wheels from PyPI)"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+go test -tags network ./internal/core/ -run TestNetwork -count=1 -v "$@"

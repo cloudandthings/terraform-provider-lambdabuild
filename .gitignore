@@ -1,0 +1,8 @@
+.DS_Store
+.claude/worktrees/
+.scratch/
+bin/
+internal/core/internal/uvbin/assets/
+dist/
+dev/mock-aws/build/
+dev/mock-aws/terraform.tfstate*

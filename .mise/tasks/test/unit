@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Run Go unit and seam B (core interface) tests"
+#MISE depends=["uv:fetch"]
+set -euo pipefail
+go test ./... "$@"

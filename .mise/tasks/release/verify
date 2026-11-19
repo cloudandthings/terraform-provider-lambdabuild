@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#MISE description="Check dist/ archives from release:snapshot contain every platform, the licences and the manifest"
+set -euo pipefail
+shopt -s nullglob
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
+want=(darwin_amd64 darwin_arm64 linux_amd64 linux_arm64 windows_amd64)
+for p in "${want[@]}"; do
+  archives=(dist/terraform-provider-lambdabuild_*_"$p".zip)
+  [[ ${#archives[@]} -eq 1 ]] || { echo "missing archive for $p" >&2; exit 1; }
+  listing="$(unzip -Z1 "${archives[0]}")"
+  for f in LICENSE licenses/uv/LICENSE-MIT licenses/uv/LICENSE-APACHE; do
+    grep -qx "$f" <<<"$listing" || { echo "${archives[0]}: missing $f" >&2; exit 1; }
+  done
+  grep -q '^terraform-provider-lambdabuild_v' <<<"$listing" || { echo "${archives[0]}: missing provider binary" >&2; exit 1; }
+done
+sums=(dist/*_SHA256SUMS)
+[[ ${#sums[@]} -eq 1 ]] || { echo "SHA256SUMS missing" >&2; exit 1; }
+grep -q '_manifest.json$' "${sums[0]}" || { echo "registry manifest not in ${sums[0]}" >&2; exit 1; }
+echo "release archives OK"

@@ -1,0 +1,77 @@
+# GoReleaser v2 (pinned in .mise/config.toml). Run via `mise run release:snapshot`
+# locally or `release:publish` in CI.
+version: 2
+
+project_name: terraform-provider-lambdabuild
+
+before:
+  hooks:
+    # Embeds one pinned uv per host platform (checksum-verified, see uv:fetch).
+    - mise run uv:fetch --all
+
+builds:
+  - id: provider
+    binary: "{{ .ProjectName }}_v{{ .Version }}"
+    main: .
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    # Each target embeds its matching uv through build-tagged
+    # internal/core/internal/uvbin/embed_<goos>_<goarch>.go files.
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: provider
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - src: LICENSE
+        dst: LICENSE
+      - src: licenses/uv/LICENSE-MIT
+        dst: licenses/uv/LICENSE-MIT
+      - src: licenses/uv/LICENSE-APACHE
+        dst: licenses/uv/LICENSE-APACHE
+      - src: licenses/README.md
+        dst: licenses/README.md
+      - src: CHANGELOG.md
+        dst: CHANGELOG.md
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+  algorithm: sha256
+  extra_files:
+    - glob: terraform-registry-manifest.json
+      name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
+
+# GPG_FINGERPRINT and GPG_PASSPHRASE_FILE are supplied by CI (release:gpg-import).
+# Snapshot builds pass --skip=sign, so no key is needed locally.
+signs:
+  - artifacts: checksum
+    args:
+      - "--batch"
+      - "--pinentry-mode"
+      - "loopback"
+      - "--passphrase-file"
+      - "{{ .Env.GPG_PASSPHRASE_FILE }}"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  extra_files:
+    - glob: terraform-registry-manifest.json
+      name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
+
+changelog:
+  disable: true # CHANGELOG.md is maintained by hand (see its policy); release:publish passes the version's section as release notes.

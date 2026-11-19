@@ -1,0 +1,44 @@
+version = 1
+revision = 5
+requires-python = ">=3.12"
+
+[[package]]
+name = "nolic"
+version = "1.0"
+source = { registry = "simple" }
+wheels = [
+    { path = "nolic/nolic-1.0-py3-none-any.whl", hash = "sha256:1de36d216836b38e48d0099630313280e21f94d078342884549f76c6cfad346f" },
+]
+
+[[package]]
+name = "sbom-licences"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "nolic" },
+    { name = "unknownlic" },
+    { name = "zeta-pkg" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "nolic", specifier = "==1.0" },
+    { name = "unknownlic", specifier = "==1.0" },
+    { name = "zeta-pkg", specifier = "==1.0" },
+]
+
+[[package]]
+name = "unknownlic"
+version = "1.0"
+source = { registry = "simple" }
+wheels = [
+    { path = "unknownlic/unknownlic-1.0-py3-none-any.whl", hash = "sha256:5e7ec0838aeed3b4a72918a4be40589cf41d160ef12143aa4b636917e32f86d4" },
+]
+
+[[package]]
+name = "zeta-pkg"
+version = "1.0"
+source = { registry = "simple" }
+wheels = [
+    { path = "zeta-pkg/Zeta_Pkg-1.0-py3-none-any.whl", hash = "sha256:a7fa6cb84a86bc4118a366442ea564db1673db21b8cdfe85e027485fcd78f125" },
+]
