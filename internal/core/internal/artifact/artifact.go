@@ -116,7 +116,7 @@ func Commit(files ...*Staged) error {
 		if f == nil {
 			continue
 		}
-		if err := os.Rename(f.tmp, f.final); err != nil {
+		if err := rename(f.tmp, f.final); err != nil {
 			for _, done := range files[:i] {
 				if done != nil {
 					_ = os.Remove(done.final)
