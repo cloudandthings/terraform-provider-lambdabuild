@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -154,9 +155,9 @@ func TestAccProvider_arguments(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: providerHCL(
-					`cache_dir = "`+t.TempDir()+`"`,
+					`cache_dir = `+strconv.Quote(t.TempDir()),
 					`uv_path = "/nonexistent/uv"`,
-					`uv_cache_dir = "`+t.TempDir()+`"`,
+					`uv_cache_dir = `+strconv.Quote(t.TempDir()),
 					`index_url = "corp=https://pypi.example.internal/simple"`,
 					`extra_index_urls = ["https://extra.example.internal/simple", "extra=https://two.example.internal/simple"]`,
 					`python_install_mirror = "https://mirror.example.internal/pbs"`,
@@ -201,10 +202,10 @@ func TestAccProvider_invalidArguments(t *testing.T) {
 func TestAccPythonPackage_withDependencies(t *testing.T) {
 	project := copyFixture(t, "pure-deps")
 	out := filepath.Join(t.TempDir(), "out")
-	cfg := providerHCL(`cache_dir = "`+testCacheDir()+`"`) + `
+	cfg := providerHCL(`cache_dir = `+strconv.Quote(testCacheDir())) + `
 resource "lambdabuild_python_package" "test" {
-  project_dir    = "` + project + `"
-  output_dir     = "` + out + `"
+  project_dir    = ` + strconv.Quote(project) + `
+  output_dir     = ` + strconv.Quote(out) + `
   python_version = "3.12"
 }
 `

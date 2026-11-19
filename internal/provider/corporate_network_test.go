@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -81,10 +82,10 @@ default = true
 	out := filepath.Join(t.TempDir(), "out")
 	uvCache := t.TempDir()
 	cfg := func(provider, trigger string) string {
-		return providerHCL(`cache_dir = "`+testCacheDir()+`"`, `uv_cache_dir = "`+uvCache+`"`, provider) + `
+		return providerHCL(`cache_dir = `+strconv.Quote(testCacheDir()), `uv_cache_dir = `+strconv.Quote(uvCache), provider) + `
 resource "lambdabuild_python_package" "test" {
-  project_dir    = "` + project + `"
-  output_dir     = "` + out + `"
+  project_dir    = ` + strconv.Quote(project) + `
+  output_dir     = ` + strconv.Quote(out) + `
   python_version = "3.12"
   triggers       = { run = "` + trigger + `" }
 ` + extraResourceLines(provider) + `}

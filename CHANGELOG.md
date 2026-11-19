@@ -33,6 +33,12 @@ Packaging-format version 2. Every Artifact gets a new `output_path` on the next 
 - Apply checks the Input fingerprint before building, and the zip and SBOM are written as one unit: a failed apply leaves no stray Artifact files.
 - The CRLF warning skips binary files.
 
+### Fixed
+
+- Parallel builds sharing a `cache_dir` on Windows no longer fail with a half-installed managed Python (`ModuleNotFoundError`, `FileNotFoundError` for standard-library files, or `os error 32`). The managed Python is installed under a lock, and builds run it from its patch-version folder, not uv's minor-version link.
+- Parallel builds writing the same Artifact into one `output_dir` on Windows no longer fail with `Access is denied`.
+- Installing the managed Python no longer adds `python3.x` links to the user's bin folder or, on Windows, a registry entry.
+
 ### Added
 
 - `lambdabuild_python_package` resource: deterministic Lambda zip Artifacts (function or layer) from uv-managed Python projects, with an embedded, pinned uv.
