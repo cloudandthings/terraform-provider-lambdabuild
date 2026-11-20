@@ -39,15 +39,15 @@ Status and what's next: `ROADMAP.md`. Nothing released yet (`VERSION` is `0.0.0`
 
 ### Issue tracker
 
-Issues and specs are local markdown files under `.scratch/<feature>/`. `.scratch/` is gitignored: it lives only on the developer's machine, never in the repo. Planned work for others to see goes in `ROADMAP.md`. See `docs/agents/issue-tracker.md`.
+Issues and specs are local markdown files under `.scratch/<feature>/`. `.scratch/` is gitignored: it lives only on the developer's machine, never in the repo. Planned work for others to see goes in `ROADMAP.md`. See `.agents/issue-tracker.md`.
 
 ### Triage labels
 
-Default five-role vocabulary, recorded as a `Status:` line in each issue file. See `docs/agents/triage-labels.md`.
+Default five-role vocabulary, recorded as a `Status:` line in each issue file. See `.agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `.agents/domain.md`.
 
 ## mise
 
