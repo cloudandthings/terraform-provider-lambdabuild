@@ -13,8 +13,45 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Skips the expensive jobs on PRs that only touch prose. The filter is a
+  # denylist: any path not listed here runs the full matrix, so a new input
+  # can never be skipped by accident. Pushes to main always run everything.
+  # Generated docs (docs/index.md, docs/resources/, docs/guides/), templates/,
+  # examples/, CHANGELOG.md and licenses/ stay in: docs:validate or the release
+  # archives depend on them.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!README.md'
+              - '!ROADMAP.md'
+              - '!GLOSSARY.md'
+              - '!CLAUDE.md'
+              - '!docs/README.md'
+              - '!docs/adr/**'
+              - '!docs/architecture/**'
+              - '!docs/development/**'
+              - '!.agents/**'
+              - '!.claude/**'
+
   ci:
     name: ci (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -28,6 +65,8 @@ jobs:
 
   release-snapshot:
     name: release snapshot
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -35,3 +74,15 @@ jobs:
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       - run: mise run release:snapshot
       - run: mise run release:verify
+
+  # The single required status check for main. Passes when every job above
+  # passed or was skipped by the filter; fails if any failed or was cancelled.
+  ci-ok:
+    name: ci-ok
+    needs: [changes, ci, release-snapshot]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
