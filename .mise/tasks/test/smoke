@@ -3,7 +3,8 @@
 #USAGE flag "--python <version>" default="3.12" help="Python minor version (Lambda image tag and python_version)"
 #USAGE flag "--keep" help="Keep dist/smoke (built zips, state) after the run"
 #
-# Needs Docker (amd64 containers run under emulation on arm64 hosts: slow but fine) and
+# Needs Docker with emulation for the non-host architecture (Docker Desktop has it;
+# on a bare Linux host register QEMU binfmt first, as nightly.yml does) and
 # network (PyPI for numpy, GitHub for python-build-standalone, public.ecr.aws).
 #
 # 1. Cross-compile the provider for linux/<host arch> (the Terraform container's arch).
