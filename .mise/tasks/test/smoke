@@ -51,7 +51,9 @@ provider_installation {
 EOF
 
 echo "==> terraform apply in hashicorp/terraform:$tf_version ($tf_platform)"
-tf=(docker run --rm --platform "$tf_platform"
+# Run as the host user: on Linux, files written to bind mounts keep the
+# container's uid, and root-owned Artifacts break the cleanup below.
+tf=(docker run --rm --platform "$tf_platform" --user "$(id -u):$(id -g)"
   --entrypoint terraform
   -e HOME=/tmp -e TF_IN_AUTOMATION=1 -e TF_CLI_CONFIG_FILE=/work/terraform.rc
   -e TF_DATA_DIR=/tmp/tfdata
