@@ -6,9 +6,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 tfplugindocs validate --provider-name lambdabuild --provider-dir .
 before="$(mktemp -d)"
 trap 'rm -rf "$before"' EXIT
-cp -R docs/index.md docs/resources "$before"/
+cp -R docs/index.md docs/resources docs/guides "$before"/
 tfplugindocs generate --provider-name lambdabuild --rendered-provider-name lambdabuild --provider-dir . --examples-dir examples
-diff -r "$before/resources" docs/resources && diff "$before/index.md" docs/index.md || {
+diff -r "$before/resources" docs/resources && diff -r "$before/guides" docs/guides && diff "$before/index.md" docs/index.md || {
   echo "docs are stale: run mise run docs:generate and commit" >&2
   exit 1
 }

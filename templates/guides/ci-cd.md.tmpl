@@ -1,0 +1,101 @@
+---
+page_title: "CI/CD pipelines"
+subcategory: ""
+description: |-
+  Run lambdabuild on ephemeral CI runners: saved plans, missing Artifacts, caching, drift detection and parallel builds.
+---
+
+# CI/CD pipelines
+
+lambdabuild is built for pipelines where `plan` and `apply` run on different, short-lived machines. This guide explains what happens on those machines and how to set the pipeline up.
+
+## Plan computes, apply builds
+
+| Step | What lambdabuild does |
+| --- | --- |
+| `terraform plan` | Hashes the build inputs into the **Input fingerprint** and derives `output_path` and `sbom_path` from it. Writes nothing and needs no network. |
+| `terraform apply` | Checks the fingerprint again, then builds the zip and SBOM into `output_dir`. Downloads uv's managed Python and the Packages on first use. |
+
+Because nothing is built at plan, a plan saved with `terraform plan -out=tfplan` on one runner applies on another. The reviewer still sees that code changed: `input_fingerprint` and `output_path` change in the plan, and dependent Lambda resources show an update. The new zip's hashes show as `(known after apply)`. The [design decision](https://github.com/cloudandthings/terraform-provider-lambdabuild/blob/main/docs/adr/0001-build-at-apply-not-plan.md) explains the trade-off.
+
+## Sources changed after the plan
+
+If someone pushes a change between `plan -out` and `apply`, the apply stops before anything is built:
+
+```text
+Error: Provider produced inconsistent final plan
+... .input_fingerprint: was "...", but now "..."
+This is a bug in the provider, which should be reported in the provider's own issue tracker.
+```
+
+Despite the wording, this is the expected, safe outcome, not a provider bug: Terraform re-plans at apply and sees that the inputs no longer match what was reviewed. Plan again. A change that lands in the brief moment after Terraform's re-plan, during the build itself, fails with `Build inputs changed since plan` instead, and leaves no Artifact behind.
+
+## Fresh runners: the missing Artifact
+
+State records the zip's path and hashes, but the zip itself lives only on the runner that built it. On a fresh runner, lambdabuild sees the file missing and the attribute `artifact_present` becomes `false`. What happens next is set by `on_missing_artifact`:
+
+- **`"rebuild"` (default)**: the plan shows an in-place update of `artifact_present` only. The hashes keep their known values, so the Lambda function shows **no change**. Apply rebuilds the zip and checks it has exactly the hash in state; if not, it fails with `Non-reproducible build`.
+- **`"ignore"`**: the plan shows no change and nothing is built.
+
+Use the default on every runner that applies: anything in the same apply that reads the zip file itself, such as an `aws_s3_object` upload, needs it on disk.
+
+One case the default cannot cover: a plan **saved** on a runner that had the zip, planning no change, then applied on a runner that does not. Nothing is built, so the zip stays absent there. Plan and apply on the same runner, or let the applying runner make its own plan.
+
+## Drift detection
+
+A scheduled `terraform plan -detailed-exitcode` job on a fresh runner would report every Artifact as "changed" with the default. Set `"ignore"` for that job through a variable; changing `on_missing_artifact` alone never produces a diff, so the job can use it against state written by the deploy pipeline:
+
+{{ tffile "examples/resources/lambdabuild_python_package/drift-detection.tf" }}
+
+```sh
+terraform plan -detailed-exitcode -var drift_check=true
+```
+
+## Caching between runs
+
+Two caches make repeat builds fast. Both are safe to share between parallel builds and to restore from a CI cache.
+
+| Cache | Provider argument | Holds | Default |
+| --- | --- | --- | --- |
+| Toolchain | `cache_dir` | The extracted uv and the managed Pythons. | User cache directory + `/lambdabuild` (for example `~/.cache/lambdabuild` on Linux) |
+| Packages | `uv_cache_dir` | Downloaded and built wheels. | uv's own default |
+
+```terraform
+provider "lambdabuild" {
+  cache_dir    = "${path.root}/.cache/lambdabuild"
+  uv_cache_dir = "${path.root}/.cache/uv"
+}
+```
+
+`cache_dir` must allow running executables. Do not point it at a `noexec` mount, as `/tmp` often is.
+
+Neither cache affects the Artifact bytes, so a cold cache and a warm cache produce the same zip.
+
+## Parallel builds and workspaces
+
+- Several resources, and several Terraform runs, may share one `cache_dir` and one `output_dir`: writes are locked or atomic.
+- **Terraform workspaces** that share a working directory must not share an `output_dir`. An apply in one workspace removes superseded Artifacts, which could be another workspace's current one. Include the workspace in the path:
+
+{{ tffile "examples/resources/lambdabuild_python_package/per-workspace-output-dir.tf" }}
+
+- Keep `output_dir` relative (for example `${path.module}/build`). The path is stored in state, and a relative one stays valid on every runner.
+
+## Checkouts on Windows runners
+
+Git on Windows may check text files out with CRLF line endings. Those bytes differ from an LF checkout, so the Input fingerprint differs and the plan warns `lambdabuild: crlf_line_endings`. Commit a `.gitattributes` so every checkout matches:
+
+```text
+* text=auto eol=lf
+```
+
+## Stale lockfiles
+
+By default (`lock_mode = "locked"`) the build fails when `uv.lock` does not match `pyproject.toml`. Run `uv lock` and commit the result. A pipeline step `uv lock --check` catches this before Terraform runs. `lock_mode = "frozen"` skips the check and builds from `uv.lock` as it stands.
+
+## Large Artifacts
+
+- A zip over **50 MB** cannot be uploaded to Lambda directly. The build warns; upload it through S3:
+
+{{ tffile "examples/resources/lambdabuild_python_package/s3-upload.tf" }}
+
+- Lambda rejects functions whose code and layers exceed **250 MB unzipped**. lambdabuild fails such a build early and lists the largest Packages. Remove Packages the runtime already provides (`exclude_packages = ["boto3", "botocore"]`) or set `size_limit_mode = "warn"` to build anyway. Layers do not help here: the limit covers a function and all its layers together.

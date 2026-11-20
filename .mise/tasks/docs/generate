@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Generate Registry docs (docs/index.md, docs/resources/) with tfplugindocs from schema descriptions, templates/ and examples/"
+#MISE description="Generate Registry docs (docs/index.md, docs/resources/, docs/guides/) with tfplugindocs from schema descriptions, templates/ and examples/"
 #MISE depends=["uv:fetch"]
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
