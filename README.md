@@ -60,10 +60,11 @@ More examples (layers, code-only functions, S3 upload, SBOM upload, drift-detect
 
 ## Documentation
 
-- [Provider configuration](docs/index.md): cache directory, private indexes and credentials, proxies and mirrors.
-- [`lambdabuild_python_package`](docs/resources/python_package.md): every argument and attribute, plus behaviour notes.
-- [GLOSSARY.md](GLOSSARY.md): the terms used throughout (Artifact, Input fingerprint, ...).
-- [Architecture decisions](docs/adr/) and [CHANGELOG.md](CHANGELOG.md).
+The [documentation index](docs/README.md) has everything, by audience.
+
+- **Users**: [Getting started](docs/guides/getting-started.md), [CI/CD pipelines](docs/guides/ci-cd.md), [private indexes and restricted networks](docs/guides/private-networks.md), [reproducible builds](docs/guides/reproducible-builds.md), [troubleshooting](docs/guides/troubleshooting.md), and the reference for the [provider](docs/index.md) and [`lambdabuild_python_package`](docs/resources/python_package.md).
+- **Architects**: [architecture overview](docs/architecture/README.md), [decision records](docs/adr/README.md), [GLOSSARY.md](GLOSSARY.md), [ROADMAP.md](ROADMAP.md).
+- **Contributors**: [developing](docs/development/README.md), [testing](docs/development/testing.md), [releasing and upgrades](docs/development/releasing.md), [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
@@ -75,9 +76,7 @@ mise run ci             # lint, unit, acceptance and docs checks, as CI runs the
 mise tasks              # everything else (golden hashes, smoke tests, mock AWS, ...)
 ```
 
-`mise run mock-aws:up` then `mise run mock-aws:apply` plans and applies the provider from this checkout against a local mock AWS; see [dev/mock-aws](dev/mock-aws/README.md).
-
-Registry docs under `docs/` are generated: edit schema descriptions, `templates/` or `examples/`, then run `mise run docs:generate`.
+See [docs/development](docs/development/README.md) for the repository layout, the test layers and how to make a change.
 
 ## License
 

@@ -9,6 +9,12 @@ description: |-
 Builds deterministic AWS Lambda zip Artifacts (functions and layers) from uv-managed Python projects.
 uv is embedded in the provider binary, so no Python tooling is needed on the runner.
 
+- **Same inputs, same bytes, on every host.** A zip built on macOS, Linux or Windows has the same SHA-256, so `source_code_hash` changes only when your code or `uv.lock` does.
+- **Plan computes, apply builds.** Plan hashes the inputs into the Input fingerprint; apply builds the zip. Saved plans apply on another runner.
+- **Built for Lambda.** Linux wheels for `x86_64` or `arm64` and Python 3.11 to 3.14, function or layer layout, a CycloneDX SBOM beside every zip.
+
+New here? Start with the **Getting started** guide. The **CI/CD pipelines**, **Private indexes and restricted networks**, **Reproducible builds** and **Troubleshooting** guides cover running it in production.
+
 ## Example Usage
 
 {{ tffile "examples/provider/provider.tf" }}

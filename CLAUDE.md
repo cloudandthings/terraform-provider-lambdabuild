@@ -12,7 +12,9 @@ Status and what's next: `ROADMAP.md`. Nothing released yet (`VERSION` is `0.0.0`
 - `cmd/lambdabuild-harness/`: CLI that drives `core` directly, for debugging builds without Terraform.
 - `testdata/fixtures/`: hermetic uv projects with fake Packages (regenerate with `mise run fixtures:gen`). `testdata/smoke/`: container smoke test config.
 - `dev/mock-aws/`: plan/apply the local provider against moto (`mise run mock-aws:*`).
-- `docs/` is **generated** by tfplugindocs from schema descriptions, `templates/` and `examples/`. Edit those, then `mise run docs:generate`; `docs:validate` fails on drift.
+- `docs/index.md`, `docs/resources/` and `docs/guides/` are **generated** by tfplugindocs from schema descriptions, `templates/` (including `templates/guides/`) and `examples/`. Edit those, then `mise run docs:generate`; `docs:validate` fails on drift.
+- `docs/README.md` (index by audience), `docs/architecture/`, `docs/development/` and `docs/adr/` are hand-written human docs. Keep them current when behaviour, tasks or layout change.
+- `.agents/`: configuration the agent skills read (issue tracker, triage labels, domain docs). Not user documentation.
 
 ## Domain and decisions
 
@@ -39,15 +41,15 @@ Status and what's next: `ROADMAP.md`. Nothing released yet (`VERSION` is `0.0.0`
 
 ### Issue tracker
 
-Issues and specs are local markdown files under `.scratch/<feature>/`. `.scratch/` is gitignored: it lives only on the developer's machine, never in the repo. Planned work for others to see goes in `ROADMAP.md`. See `docs/agents/issue-tracker.md`.
+Issues and specs are local markdown files under `.scratch/<feature>/`. `.scratch/` is gitignored: it lives only on the developer's machine, never in the repo. Planned work for others to see goes in `ROADMAP.md`. See `.agents/issue-tracker.md`.
 
 ### Triage labels
 
-Default five-role vocabulary, recorded as a `Status:` line in each issue file. See `docs/agents/triage-labels.md`.
+Default five-role vocabulary, recorded as a `Status:` line in each issue file. See `.agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `.agents/domain.md`.
 
 ## mise
 
