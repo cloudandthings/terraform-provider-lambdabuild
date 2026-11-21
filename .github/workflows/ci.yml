@@ -4,8 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
-  # release.yml dispatches this on the release-please PR branch: that PR is
-  # pushed with GITHUB_TOKEN, which never triggers pull_request runs.
+  # release.yml dispatches this on the release-please PR branch when no
+  # pull_request run starts there by itself (that PR is pushed with
+  # GITHUB_TOKEN, which usually triggers none).
   workflow_dispatch:
 
 permissions:

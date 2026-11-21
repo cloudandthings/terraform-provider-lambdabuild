@@ -64,7 +64,7 @@ mise is the single entry point for tooling, tasks and env vars, so a task runs t
 
 ## Releasing
 
-- release-please (`.github/workflows/release.yml`, `release-please-config.json`) keeps a `chore: release X.Y.Z` PR open on `main`, bumping `VERSION` and prepending `CHANGELOG.md`. CI on that PR is dispatched by `release.yml` (`release:dispatch-ci`), since GITHUB_TOKEN pushes don't trigger `pull_request` runs. `/release` reviews the open release PR (docs coverage, bump level).
+- release-please (`.github/workflows/release.yml`, `release-please-config.json`) keeps a `chore: release X.Y.Z` PR open on `main`, bumping `VERSION` and prepending `CHANGELOG.md`. If no CI run starts on that PR by itself (GITHUB_TOKEN pushes usually don't trigger `pull_request`), `release.yml` dispatches one (`release:dispatch-ci`). `/release` reviews the open release PR (docs coverage, bump level).
 - Merging it tags `vX.Y.Z` and creates a draft release; the smoke tests gate `mise run release:publish` (GoReleaser builds, GPG-signs, fills and publishes the draft). Signing uses org secrets `GPG_PRIVATE_KEY` and `PASSPHRASE`.
 - Manual "Run workflow" with `tag`: a new version forces the release PR to that version (`release:force-pr`); an existing tag re-runs smoke + publish for it. Never tag or publish by hand.
 - `mise run release:snapshot` + `release:verify` build and check the archives locally; CI runs them on every PR.
