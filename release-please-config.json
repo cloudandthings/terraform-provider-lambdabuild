@@ -3,11 +3,11 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "terraform-provider-lambdabuild",
       "version-file": "VERSION",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false,
       "include-v-in-tag": true,
+      "initial-version": "0.1.0",
       "bump-minor-pre-major": true,
       "draft": true,
       "force-tag-creation": true,
