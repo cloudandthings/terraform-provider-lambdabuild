@@ -19,7 +19,8 @@ lambdabuild builds deterministic AWS Lambda zip Artifacts from uv-managed Python
 2. **Publish to the Terraform Registry** as `cloudandthings/lambdabuild`.
    - Repository public, with CI running the OS-matrix golden-hash comparison.
    - Container smoke tests running nightly and before each release.
-   - GPG signing key created, registered with the Registry, and stored as `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` secrets.
+   - GPG signing key registered with the Registry (the organisation's `GPG_PRIVATE_KEY` / `PASSPHRASE` secrets sign releases).
+   - Releases automated with release-please (done).
    - First tag released and installable through `required_providers`.
 3. **End-to-end deploy to an AWS sandbox account.** Function and layer deployed and invoked, including numpy on arm64, from a clean container with only Terraform installed; scheduled nightly. Not yet triaged; may follow the first release.
 

@@ -1,15 +1,24 @@
 name: Release
 
-# Releasing = run /release-patch|minor|major, which opens a PR bumping `VERSION`.
-# Merging it to main tags vX.Y.Z and publishes the signed GitHub Release (the
-# Terraform Registry picks it up from there) unless it is already published.
-# To retry a failed run (or release after a fix that didn't touch VERSION),
-# use "Run workflow" on main.
+# release-please keeps a release PR open on main ("chore: release X.Y.Z"),
+# built from the Conventional Commit PR titles merged since the last release.
+# Merging it tags vX.Y.Z and creates a draft GitHub Release; the container smoke
+# tests then gate GoReleaser, which builds, GPG-signs and publishes that draft
+# (the Terraform Registry picks it up from there).
+#
+# Manual run ("Run workflow" on main) with a tag:
+#   - tag not created yet: open or update the release PR for exactly that version.
+#   - tag exists: smoke + publish that tag (retries a failed publish).
+# Without a tag it does the same as a push to main.
 on:
   push:
     branches: [main]
-    paths: [VERSION]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "vX.Y.Z: a new version to release, or an existing tag to publish"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -19,30 +28,94 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  smoke:
+  plan:
     if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/nightly.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            echo "mode=auto" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag must be vX.Y.Z, got '$TAG'"; exit 1; }
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "mode=publish" >>"$GITHUB_OUTPUT"
+          else
+            echo "mode=force" >>"$GITHUB_OUTPUT"
+          fi
+          echo "tag=$TAG" >>"$GITHUB_OUTPUT"
 
-  release:
-    needs: smoke
-    if: github.ref == 'refs/heads/main'
+  release-please:
+    needs: plan
+    if: needs.plan.outputs.mode != 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write # release-please labels its PR
+      actions: write # dispatch-ci
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      - id: rp
+        if: needs.plan.outputs.mode == 'auto'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - if: needs.plan.outputs.mode == 'force'
+        run: mise run release:force-pr "${TAG#v}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+      - run: mise run release:dispatch-ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  smoke:
+    needs: [plan, release-please]
+    if: >-
+      always() && (
+        needs.plan.outputs.mode == 'publish' ||
+        needs.release-please.outputs.release_created == 'true'
+      )
+    uses: ./.github/workflows/nightly.yml
+    with:
+      ref: ${{ needs.plan.outputs.tag || needs.release-please.outputs.tag }}
+
+  publish:
+    needs: [plan, release-please, smoke]
+    if: always() && needs.smoke.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: write
+    env:
+      TAG: ${{ needs.plan.outputs.tag || needs.release-please.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.TAG }}
           fetch-depth: 0
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
-      - name: Import GPG key
-        id: gpg
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: mise run release:gpg-import
-      - run: mise run release:publish
+      - id: gpg
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      - run: mise run release:publish "$TAG"
         env:
           GH_TOKEN: ${{ github.token }}
           GPG_FINGERPRINT: ${{ steps.gpg.outputs.fingerprint }}
-          GPG_PASSPHRASE_FILE: ${{ steps.gpg.outputs.passphrase_file }}
