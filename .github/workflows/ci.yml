@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # release.yml dispatches this on the release-please PR branch: that PR is
+  # pushed with GITHUB_TOKEN, which never triggers pull_request runs.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -63,6 +66,36 @@ jobs:
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       - run: mise run ci
 
+  # Squash merges make the PR title the commit on main, and release-please
+  # builds the version bump and CHANGELOG.md from those titles. After fixing a
+  # title, re-run this job: it reads the current title.
+  pr-title:
+    name: pr title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@c5e23b7e584519ee15caa684cf60d056aa9f035f # v6.1.3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          # Keep in sync with changelog-sections in release-please-config.json.
+          types: |
+            feat
+            fix
+            perf
+            redeploy
+            revert
+            docs
+            chore
+            ci
+            build
+            test
+            refactor
+            style
+
   release-snapshot:
     name: release snapshot
     needs: changes
@@ -79,7 +112,7 @@ jobs:
   # passed or was skipped by the filter; fails if any failed or was cancelled.
   ci-ok:
     name: ci-ok
-    needs: [changes, ci, release-snapshot]
+    needs: [changes, pr-title, ci, release-snapshot]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
