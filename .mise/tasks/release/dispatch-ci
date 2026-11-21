@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
-#MISE description="CI-only: run ci.yml on the open release-please PR's head commit, unless it already ran there"
+#MISE description="CI-only: run ci.yml on the open release-please PR's head commit if no CI run starts there on its own"
 set -euo pipefail
 : "${GH_TOKEN:?}"
 
-# release-please pushes its PR branch with GITHUB_TOKEN, which never triggers
-# pull_request workflows. workflow_dispatch is the exception, and the ci-ok
-# check it reports lands on the same commit as the PR head.
+# GitHub normally starts no pull_request runs for pushes made with
+# GITHUB_TOKEN, but it did start one for release-please's PR here. Wait for
+# such a run before falling back to workflow_dispatch (always allowed), so
+# the release PR gets ci-ok exactly once.
 branch=release-please--branches--main
 sha=$(gh pr list --head "$branch" --base main --state open --json headRefOid --jq '.[0].headRefOid // empty')
 if [ -z "$sha" ]; then
   echo "No open release PR"
   exit 0
 fi
-runs=$(gh run list --workflow ci.yml --commit "$sha" --json databaseId --jq 'length')
-if [ "$runs" -gt 0 ]; then
-  echo "CI already ran on release PR head $sha"
-  exit 0
-fi
+for _ in $(seq 12); do
+  runs=$(gh run list --workflow ci.yml --commit "$sha" --json databaseId --jq 'length')
+  if [ "$runs" -gt 0 ]; then
+    echo "CI already running on release PR head $sha"
+    exit 0
+  fi
+  sleep 10
+done
 gh workflow run ci.yml --ref "$branch"
 echo "Dispatched CI on $branch ($sha)"
