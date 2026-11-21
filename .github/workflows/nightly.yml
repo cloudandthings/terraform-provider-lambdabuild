@@ -1,12 +1,18 @@
 name: Nightly
 
 # Slow checks that need Docker or the network. Also called by release.yml as a
-# gate, so a release never ships without them passing.
+# gate on the release tag, so a release never ships without them passing.
 on:
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: Git ref to test (release.yml passes the release tag)
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -22,6 +28,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       # The runner is amd64 with no binfmt handlers: register QEMU so the
       # linux/arm64 Lambda image can run.
@@ -36,5 +44,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       - run: mise run test:network

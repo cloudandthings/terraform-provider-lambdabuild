@@ -1,5 +1,5 @@
 # GoReleaser v2 (pinned in .mise/config.toml). Run via `mise run release:snapshot`
-# locally or `release:publish` in CI.
+# locally or `release:publish <tag>` in CI (release.yml).
 version: 2
 
 project_name: terraform-provider-lambdabuild
@@ -51,16 +51,13 @@ checksum:
     - glob: terraform-registry-manifest.json
       name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
 
-# GPG_FINGERPRINT and GPG_PASSPHRASE_FILE are supplied by CI (release:gpg-import).
-# Snapshot builds pass --skip=sign, so no key is needed locally.
+# GPG_FINGERPRINT comes from crazy-max/ghaction-import-gpg in release.yml, which
+# also presets the passphrase in gpg-agent. Snapshot builds pass --skip=sign, so
+# no key is needed locally.
 signs:
   - artifacts: checksum
     args:
       - "--batch"
-      - "--pinentry-mode"
-      - "loopback"
-      - "--passphrase-file"
-      - "{{ .Env.GPG_PASSPHRASE_FILE }}"
       - "--local-user"
       - "{{ .Env.GPG_FINGERPRINT }}"
       - "--output"
@@ -68,10 +65,16 @@ signs:
       - "--detach-sign"
       - "${artifact}"
 
+# release-please creates the tag and a draft release with its notes; goreleaser
+# uploads into that draft, keeps the notes and publishes it, so the Terraform
+# Registry never sees a published release without its signed checksums.
 release:
+  use_existing_draft: true
+  mode: keep-existing
+  draft: false
   extra_files:
     - glob: terraform-registry-manifest.json
       name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"
 
 changelog:
-  disable: true # CHANGELOG.md is maintained by hand (see its policy); release:publish passes the version's section as release notes.
+  disable: true # release-please writes CHANGELOG.md and the release notes.
