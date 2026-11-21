@@ -117,5 +117,6 @@ jobs:
           passphrase: ${{ secrets.PASSPHRASE }}
       - run: mise run release:publish "$TAG"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }} # gh
+          GITHUB_TOKEN: ${{ github.token }} # goreleaser
           GPG_FINGERPRINT: ${{ steps.gpg.outputs.fingerprint }}
