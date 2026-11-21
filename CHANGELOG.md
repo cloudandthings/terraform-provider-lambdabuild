@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0 (2026-11-21)
+
+
+### Features
+
+* **ci:** skip the CI matrix on prose-only PRs, add ci-ok gate ([#5](https://github.com/cloudandthings/terraform-provider-lambdabuild/issues/5)) ([d2cf763](https://github.com/cloudandthings/terraform-provider-lambdabuild/commit/d2cf763231b0de072887bf96a460a792ee379b2c))
+
+
+### Bug Fixes
+
+* **ci:** make the Nightly container smoke job pass ([#4](https://github.com/cloudandthings/terraform-provider-lambdabuild/issues/4)) ([df30486](https://github.com/cloudandthings/terraform-provider-lambdabuild/commit/df30486d6e077018c122356e2560971131a87170))
+* make the Windows CI job pass ([#1](https://github.com/cloudandthings/terraform-provider-lambdabuild/issues/1)) ([3345a2f](https://github.com/cloudandthings/terraform-provider-lambdabuild/commit/3345a2f3faf8f71c15519b77aa2580cb8230d1ac))
+
+## Changelog
+
 All notable changes are recorded here, newest first. Versions follow semantic versioning.
 
 ## Changelog policy
